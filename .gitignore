@@ -1,5 +1,9 @@
 # My stuff
 junk/
+secret.py
+log.log
+
+.idea/
 
 
 # Byte-compiled / optimized / DLL files
