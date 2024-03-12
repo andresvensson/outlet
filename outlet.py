@@ -25,16 +25,19 @@ class CtrlOutlet:
         self.data = None
         self.url = s.url()
         # self.on = None
-        self.sleep = 2
+        self.sleep = 2.0
 
         while True:
             self.get_daylight()
             self.set_state()
+            self.sleep = self.get_sleep()
 
             if developing:
                 self.print_data()
                 break
             else:
+                msg = "sleep for {0} minutes".format(round(self.sleep / 60))
+                logging.info(msg)
                 time.sleep(self.sleep)
                 print("Sleep")
 
@@ -102,7 +105,7 @@ class CtrlOutlet:
             c.close()
 
         except pymysql.Error as e:
-            msg = "Error reading DB: {}\nFallback to default schema".format(e)
+            msg = "Error reading DB: {0}\nFallback to default schema".format(e)
             print(msg)
             logging.warning(msg)
 
@@ -113,36 +116,54 @@ class CtrlOutlet:
             d['raw_data'] = sql
             d['time_stamp'] = sql[1]
 
-            d['sunrise'] = sql[2]
-            d['sunset'] = sql[3]
+            d['td_sunrise'] = sql[2]
+            d['td_sunset'] = sql[3]
 
             d['api_time'] = sql[4]
 
             # compensate for sunset/sunrise being timedelta object
             # also add 1 hour for timezone corrections
             ts = ts_now.replace(hour=1, minute=0, second=0, microsecond=0)
-            sunrise = ts + d['sunrise']
-            sunset = ts + d['sunset']
-
-            if sunrise < ts_now < sunset:
-                logging.info("its daylight")
-                d['daylight'] = True
-                d['nightfall'] = False
-            else:
-                logging.info("its nighttime")
-                d['daylight'] = False
-                d['nightfall'] = True
+            d['sunrise'] = ts + d['td_sunrise']
+            d['sunset'] = ts + d['td_sunset']
 
         else:
             # a default on/off time
-            if ts_now.replace(hour=7, minute=30, second=0) < ts_now < ts_now.replace(hour=18, minute=0, second=0):
-                d['daylight'] = True
-                d['nightfall'] = False
-            else:
-                d['daylight'] = False
-                d['nightfall'] = True
-                print("found no values")
+            d['sunrise'] = ts_now.replace(hour=7, minute=30, second=0)
+            d['sunset'] = ts_now.replace(hour=18, minute=0, second=0)
+
+        if d['sunrise'] < ts_now < d['sunset']:
+            logging.info("its daylight")
+            d['daylight'] = True
+            d['nightfall'] = False
+        else:
+            logging.info("its nighttime")
+            d['daylight'] = False
+            d['nightfall'] = True
+
         self.data = d
+
+    def get_sleep(self):
+        sec = 0
+        ts_now = datetime.datetime.now()
+
+        # calculate time to sunrise (same day) 00:00 -> 07:30
+        if ts_now < self.data['sunrise']:
+            sec = self.data['sunrise'] - ts_now
+
+        # to sunset same day 07:30 -> 18:00
+        if self.data['sunrise'] < ts_now < self.data['sunset']:
+            sec = self.data['sunset'] - ts_now
+
+        # to next the day 18:00 -> next day
+        elif ts_now > self.data['sunset']:
+            time_delta = datetime.timedelta(days=1)
+            stop_date = ts_now + time_delta
+            stop_date = stop_date.replace(hour=2, minute=5)
+            sec = stop_date - ts_now
+
+        self.sleep = sec.total_seconds() + 5
+        return self.sleep
 
     def print_data(self):
         if isinstance(self.data, dict):
