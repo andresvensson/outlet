@@ -8,6 +8,8 @@ import secret as s
 from phue import Bridge
 
 # CONFIG
+# hours to sleep if lamp toggled by homepage:
+interruption_delay = 8
 developing = s.settings()
 # path for local database
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,16 +25,19 @@ class CtrlOutlet:
     """
     def __init__(self) -> None:
         self.data = None
+        self.interruption_data = None
         self.url = s.url()
-        # self.on = None
+        self.interruption_delay = interruption_delay
         self.sleep = 2.0
 
         while True:
+            self.check_interrupts()
             self.get_daylight()
             self.set_state()
             self.sleep = self.get_sleep()
 
             if developing:
+                # add interrupts/break data
                 self.print_data()
                 break
             else:
@@ -43,6 +48,57 @@ class CtrlOutlet:
 
         logging.info("DEV: Code completed")
         return
+
+    def check_interrupts(self):
+        logging.info("check if any choices was made via homepage. Interruption delay set for " +
+                     str(self.interruption_delay) + " hours")
+
+        h, u, p, d = s.sql_lampdb()
+        db = pymysql.connect(host=h, user=u, passwd=p, db=d)
+        c = db.cursor()
+        sql = None
+
+        try:
+            c.execute("SELECT * FROM eventlog WHERE unit_id=1 ORDER BY value_id DESC LIMIT 1")
+            sql = c.fetchone()
+            c.close()
+
+        except pymysql.Error as e:
+            msg = "Error reading DB: {0}\nFallback to default schema".format(e)
+            print(msg)
+            logging.warning(msg)
+
+        ts_now = datetime.datetime.now()
+        d = {}
+        if sql:
+            d['hueDB_value_id'] = sql[0]
+            d['hueDB_ts_db'] = sql[1]
+            d['hueDB_ts_code'] = sql[2]
+            d['hueDB_unit_id'] = sql[3]
+            d['hueDB_event'] = sql[4]
+
+            d['hueDB_break_time'] = d['hueDB_ts_code'] + datetime.timedelta(hours=self.interruption_delay)
+
+            self.interruption_data = d
+
+            if developing:
+                sleep_time = d['hueDB_break_time'] - ts_now
+                sleep_time_sec = sleep_time.total_seconds()
+                return
+
+            # Has outlet been given order by webb page within the delay period?
+            else:
+                if d['hueDB_break_time'] > ts_now:
+                    sleep_time = d['hueDB_break_time'] - ts_now
+                    sleep_time_sec = sleep_time.total_seconds()
+                    logging.info("lamp should not be controlled now. Waiting")
+                    time.sleep(sleep_time_sec + 5)
+                else:
+                    logging.info("Outlet has not been toggled for the set time. Proceed to check daylight")
+                    return
+        else:
+            logging.warning("No info from hue database. Don´t know if lamp manually toggled")
+            pass
 
     def set_state(self):
         logging.info("Connect to outlet")
@@ -166,7 +222,11 @@ class CtrlOutlet:
         return self.sleep
 
     def print_data(self):
+
         if isinstance(self.data, dict):
+            if isinstance(self.interruption_data, dict):
+                self.data.update(self.interruption_data)
+
             for d in self.data:
                 print(d, ":", self.data[d], type(self.data[d]))
         else:
