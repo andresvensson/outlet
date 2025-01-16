@@ -26,12 +26,14 @@ class CtrlOutlet:
     def __init__(self) -> None:
         self.data = None
         self.interruption_data = None
+        self.hold = True
         self.url = s.url()
         self.interruption_delay = interruption_delay
         self.sleep = 2.0
 
         while True:
-            self.check_interrupts()
+            while self.hold:
+                self.check_interrupts()
             self.get_daylight()
             self.set_state()
             self.sleep = self.get_sleep()
@@ -84,6 +86,7 @@ class CtrlOutlet:
             if developing:
                 sleep_time = d['hueDB_break_time'] - ts_now
                 sleep_time_sec = sleep_time.total_seconds()
+                self.hold = False
                 return
 
             # Has outlet been given order by webb page within the delay period?
@@ -95,9 +98,11 @@ class CtrlOutlet:
                     time.sleep(sleep_time_sec + 5)
                 else:
                     logging.info("Outlet has not been toggled for the set time. Proceed to check daylight")
+                    self.hold = False
                     return
         else:
             logging.warning("No info from hue database. Don´t know if lamp manually toggled")
+            self.hold = False
             pass
 
     def set_state(self):
