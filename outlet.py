@@ -94,8 +94,15 @@ class CtrlOutlet:
                 if d['hueDB_break_time'] > ts_now:
                     sleep_time = d['hueDB_break_time'] - ts_now
                     sleep_time_sec = sleep_time.total_seconds()
-                    logging.info("lamp should not be controlled now. Waiting")
+                    delay_stop = sleep_time + ts_now
+                    logging.info("lamp should not be controlled now. Waiting [" + str(sleep_time) + "], trigger time: "
+                                 + str(delay_stop))
+                    print("lamp should not be controlled now. Waiting [" + str(sleep_time) + "], trigger time: "
+                          + str(delay_stop))
                     time.sleep(sleep_time_sec + 5)
+                    # loop code once more to be sure
+                    self.hold = True
+                    return
                 else:
                     logging.info("Outlet has not been toggled for the set time. Proceed to check daylight")
                     self.hold = False
@@ -244,7 +251,8 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG, filename=log_path, filemode="w",
                             format="%(asctime)s - %(levelname)s - %(message)s")
     else:
-        logging.basicConfig(level=logging.WARNING, filename=log_path, filemode="w",
+        #TODO: change INFO -> WARNING
+        logging.basicConfig(level=logging.INFO, filename=log_path, filemode="w",
                             format="%(asctime)s - %(levelname)s - %(message)s")
     logging.info("outlet.py stared standalone")
     CtrlOutlet()
