@@ -17,6 +17,13 @@ db_path = os.path.join(BASE_DIR, "database.db")
 log_path = os.path.join(BASE_DIR, "log.log")
 
 
+# TODO
+# dev branch
+# edit print statement in main loop
+# manage logging statements
+# fix daylight toggle time (check 02:05?), determine which is closer sr/ss
+
+
 class CtrlOutlet:
     """
     Turn on at night and off at day (+2h day?, maybe later)
@@ -26,12 +33,13 @@ class CtrlOutlet:
     def __init__(self) -> None:
         self.data = None
         self.interruption_data = None
-        self.hold = True
+        self.hold = bool
         self.url = s.url()
         self.interruption_delay = interruption_delay
         self.sleep = 2.0
 
         while True:
+            self.hold = True
             while self.hold:
                 self.check_interrupts()
             self.get_daylight()
@@ -39,14 +47,13 @@ class CtrlOutlet:
             self.sleep = self.get_sleep()
 
             if developing:
-                # add interrupts/break data
                 self.print_data()
                 break
             else:
                 msg = "sleep for {0} minutes".format(round(self.sleep / 60))
                 logging.info(msg)
+                print(msg)
                 time.sleep(self.sleep)
-                print("Sleep")
 
         logging.info("DEV: Code completed")
         return
@@ -86,6 +93,9 @@ class CtrlOutlet:
             if developing:
                 sleep_time = d['hueDB_break_time'] - ts_now
                 sleep_time_sec = sleep_time.total_seconds()
+                delay_stop = sleep_time + ts_now
+                logging.info("lamp should not be controlled now. Waiting [" + str(sleep_time) + "], trigger time: "
+                             + str(delay_stop))
                 self.hold = False
                 return
 
