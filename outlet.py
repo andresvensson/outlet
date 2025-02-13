@@ -61,13 +61,12 @@ class CtrlOutlet:
     def check_interrupts(self):
         logging.info("check if any choices was made via homepage. Interruption delay set for " +
                      str(self.interruption_delay) + " hours")
-
         h, u, p, d = s.sql_lampdb()
-        db = pymysql.connect(host=h, user=u, passwd=p, db=d)
-        c = db.cursor()
         sql = None
 
         try:
+            db = pymysql.connect(host=h, user=u, passwd=p, db=d)
+            c = db.cursor()
             c.execute("SELECT * FROM eventlog WHERE unit_id=1 ORDER BY value_id DESC LIMIT 1")
             sql = c.fetchone()
             c.close()
@@ -169,14 +168,13 @@ class CtrlOutlet:
 
     def get_daylight(self):
         logging.info("Connect to remote db and set day or night status")
-
-        h, u, p, d = s.sql()
-        db = pymysql.connect(host=h, user=u, passwd=p, db=d)
-        c = db.cursor()
         sql = None
 
         try:
             # TODO
+            h, u, p, d = s.sql()
+            db = pymysql.connect(host=h, user=u, passwd=p, db=d)
+            c = db.cursor()
             c.execute("SELECT value_id, time_stamp, sunrise, sunset, api_time "
                       "FROM weather_outside ORDER BY value_id DESC LIMIT 1")
             sql = c.fetchone()
