@@ -90,11 +90,13 @@ class CtrlOutlet:
             self.interruption_data = d
 
             if developing:
-                sleep_time = d['hueDB_break_time'] - ts_now
-                sleep_time_sec = sleep_time.total_seconds()
-                delay_stop = sleep_time + ts_now
-                logging.info("lamp should not be controlled now. Waiting [" + str(sleep_time) + "], trigger time: "
-                             + str(delay_stop))
+                if d['hueDB_break_time'] > ts_now:
+                    sleep_time = d['hueDB_break_time'] - ts_now
+                    delay_stop = sleep_time + ts_now
+                    logging.info("lamp should not be controlled now. Waiting [" + str(sleep_time) + "], trigger time: "
+                                 + str(delay_stop))
+                else:
+                    logging.info("Outlet has not been controlled from homepage")
                 self.hold = False
                 return
 
