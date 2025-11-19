@@ -1,7 +1,12 @@
 # My stuff
 junk/
 secret.py
+notes.txt
 log.log
+outlet.py
+old_lamp.py
+local_cache.sqlite
+phue.conf
 
 .idea/
 
