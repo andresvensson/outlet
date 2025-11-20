@@ -1,43 +1,88 @@
 import datetime
-import os
-import logging
-import sys
 import time
-from datetime import timedelta
-from logging import warning
 
 import pymysql
 import sqlite3
 
 # debug import
+import logging
 import traceback
 
 import secret as s
 from phue import Bridge
+
+import os
+from datetime import datetime, date, timedelta
 
 # CONFIG
 
 # hours to sleep if lamp toggled by homepage:
 interruption_delay = 8
 LIGHT_ID = s.unit_id()
+developing = s.settings()
 
 # sleep hours when lamp not allowed to turn on by this code
 SLEEP_FROM = "23:00"
 SLEEP_TO = "08:00"
 
-developing = s.settings()
 # path for local database
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-log_path = os.path.join(BASE_DIR, "log.log")
+LOG_PATH = os.path.join(BASE_DIR, "log.log")
 DB_FILE = os.path.join(BASE_DIR, "local_cache.sqlite")
 BRIDGE_PATH = os.path.join(BASE_DIR, 'phue.conf')
 BRIDGE = Bridge(s.url(), config_file_path=BRIDGE_PATH)
 
 
+# === LOGGING SETUP ===
+
+# Directory where log files will be stored
+LOG_DIR = "logs"
+
+# Create logs/ directory if missing
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Create timestamped log filename (Option C)
+_log_ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+LOG_FILE = os.path.join(LOG_DIR, f"log_{_log_ts}.log")
+
+if developing:
+    # overwrite log.log file in script directory
+    logging.basicConfig(level=logging.DEBUG, filename=LOG_PATH, filemode="w",
+                        format="%(asctime)s | %(levelname)s | %(message)s")
+else:
+    logging.basicConfig(level=logging.WARNING, filename=LOG_FILE, filemode="w",
+                        format="%(asctime)s | %(levelname)s | %(message)s")
+
+
+logging.info("=== NEW PROGRAM START ===")
+logging.info(f"Logging to file: {LOG_FILE}")
+
+
+# === AUTO-DELETE OLD LOGS (> 60 days) ===
+def delete_old_logs():
+    cutoff = datetime.now() - timedelta(days=60)
+
+    for file in os.listdir(LOG_DIR):
+        if not file.startswith("log_") or not file.endswith(".log"):
+            continue
+        ts = file.replace("log_", "").replace(".log", "")
+        try:
+            dt = datetime.strptime(ts, "%Y-%m-%d_%H-%M")
+            if dt < cutoff:
+                full = os.path.join(LOG_DIR, file)
+                os.remove(full)
+                logging.info(f"Deleted old log file: {full}")
+        except Exception as e:
+            logging.warning(f"Skipping unparsable log filename {file}: {e}")
+
+
+delete_old_logs()
+
+
 def main():
     while True:
         logging.info("in main loop")
-        ts_now = datetime.datetime.now()
+        ts_now = datetime.now()
 
         # default sleep time 1 hour
         sleep = 3600 # 1 hour
@@ -48,17 +93,22 @@ def main():
         if interrupt_data['active_ban']:
             logging.info("set sleep due to interrupt")
             break_time = interrupt_data['hueDB_break_time']
-            if break_time > ts_now:
-                sleep = (break_time - ts_now).total_seconds() + 5
-                logging.warning(f"sleeping until: {break_time} due to changes made within {interruption_delay} hours")
-                if developing:
-                    logging.warning(
-                        f"DEV MODE, skipping sleep for {round((sleep / 60 / 60))} hours (to {interrupt_data['hueDB_break_time']})")
-                else:
-                    time.sleep(sleep)
+            sleep = (break_time - ts_now).total_seconds() + 5
+            logging.warning(
+                f"sleeping until: {break_time} due to changes made within {interruption_delay} hours")
+
+            if developing:
+                logging.warning(
+                    f"DEV MODE, skipping sleep for {round((sleep / 60 / 60))} hours (to {interrupt_data['hueDB_break_time']})")
+            else:
+                time.sleep(sleep)
+            now = datetime.now()
+            logging.info(f"Woke up at {now} after interruption delay")
+
         else:
             # has no data from database or no toggle detected. Follow hard coded schema
-            logging.info("No information from HUE database or Lamp has not been toggled for the set delay time. Proceed to check daylight")
+            logging.info(
+                "No information from HUE database or Lamp has not been toggled for the set delay time. Proceed to check daylight")
 
         try:
             check_status()
@@ -105,8 +155,8 @@ def check_interrupts() -> dict:
         d['hueDB_unit_id'] = sql[3]
         d['hueDB_event'] = sql[4]
 
-        d['hueDB_break_time'] = d['hueDB_ts_code'] + datetime.timedelta(hours=interruption_delay)
-        if d['hueDB_break_time'] > datetime.datetime.now():
+        d['hueDB_break_time'] = d['hueDB_ts_code'] + timedelta(hours=interruption_delay)
+        if d['hueDB_break_time'] > datetime.now():
             d['active_ban'] = True
         else:
             logging.info(f"interrupt time not relevant [{d['hueDB_break_time']}]")
@@ -126,7 +176,7 @@ def check_interrupts() -> dict:
 def check_status():
     d = get_daylight()
 
-    ts_now = datetime.datetime.now()
+    ts_now = datetime.now()
     if d['sunrise'] < ts_now < d['sunset']:
         logging.info("its daylight")
         d['daylight'] = True
@@ -137,8 +187,8 @@ def check_status():
         d['nightfall'] = True
 
     # Convert strings → time objects
-    t_from = datetime.datetime.strptime(SLEEP_FROM, "%H:%M").time()
-    t_to = datetime.datetime.strptime(SLEEP_TO, "%H:%M").time()
+    t_from = datetime.strptime(SLEEP_FROM, "%H:%M").time()
+    t_to = datetime.strptime(SLEEP_TO, "%H:%M").time()
 
     now = ts_now.time()
 
@@ -168,7 +218,7 @@ def get_daylight() -> dict:
     # check sqlite if data old, get daylight from db, store it in sql
     d = load_cache()
 
-    ts_now = datetime.datetime.now()
+    ts_now = datetime.now()
     if d:
         logging.info("Got cached values")
         if d['timestamp'] > ts_now + timedelta(days=-1):
@@ -183,6 +233,7 @@ def get_daylight() -> dict:
         return d
 
     except Exception as e:
+        traceback.format_exc()
         print(f"Error get remote data\n{e}")
         logging.exception(f"Error get remote data\n{e}")
         if d:
@@ -218,12 +269,13 @@ def get_remote_data() -> dict:
         d['timestamp'] = sql[1]
         # compensate for sunset/sunrise being timedelta object
         # also add 1 hour for timezone corrections
-        sr = sql[2] + datetime.timedelta(hours=1)
-        ss = sql[3] + datetime.timedelta(hours=1)
+        sr = sql[2] + timedelta(hours=1)
+        ss = sql[3] + timedelta(hours=1)
 
-        d['sunrise'] = datetime.datetime.combine(datetime.date.today(), (datetime.datetime.min + sr).time())
-        d['sunset'] = datetime.datetime.combine(datetime.date.today(), (datetime.datetime.min + ss).time())
+        d['sunrise'] = datetime.combine(datetime.today(), (datetime.min + sr).time())
+        d['sunset'] = datetime.combine(datetime.today(), (datetime.min + ss).time())
 
+        print("!!!!! VALS ts, sr, ss", d['timestamp'], d['sunrise'], d['sunset'])
         save_cache(d['timestamp'], d['sunrise'], d['sunset'])
 
     return d
@@ -245,13 +297,16 @@ def init_cache():
 
     conn.commit()
     conn.close()
+    print("!!!! Initiate OK")
 
 
 def save_cache(timestamp: datetime, sunrise: datetime, sunset: datetime):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    today = datetime.date.today().isoformat()
+    today = date.today().isoformat()
+    print("!!!!! TODAY", today)
+    print("!!!!! SQL insert vals:", timestamp.isoformat(), sunrise.isoformat(), sunset.isoformat())
 
     cur.execute("""
         INSERT OR REPLACE INTO daily_cache (cache_date, timestamp, sunrise, sunset)
@@ -270,11 +325,13 @@ def load_cache():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    today = datetime.date.today().isoformat()
+    today = date.today().isoformat()
 
     cur.execute("SELECT timestamp, sunrise, sunset FROM daily_cache WHERE cache_date = ?", (today,))
     row = cur.fetchone()
     conn.close()
+
+    print("ROWS?????", row)
 
     if not row:
         logging.warning("No cached values found")
@@ -282,9 +339,9 @@ def load_cache():
 
     ts, sunrise, sunset = row
     return {
-        "timestamp": datetime.datetime.fromisoformat(ts),
-        "sunrise": datetime.datetime.fromisoformat(sunrise),
-        "sunset": datetime.datetime.fromisoformat(sunset)
+        "timestamp": datetime.fromisoformat(ts),
+        "sunrise": datetime.fromisoformat(sunrise),
+        "sunset": datetime.fromisoformat(sunset)
     }
 
 
@@ -330,12 +387,5 @@ def turn_off():
 
 
 if __name__ == "__main__":
-    if developing:
-        logging.basicConfig(level=logging.DEBUG, filename=log_path, filemode="w",
-                            format="%(asctime)s - %(levelname)s - %(message)s")
-    else:
-        #TODO: change INFO -> WARNING
-        logging.basicConfig(level=logging.WARNING, filename=log_path, filemode="w",
-                            format="%(asctime)s - %(levelname)s - %(message)s")
     logging.info("lamp.py stared")
     main()
