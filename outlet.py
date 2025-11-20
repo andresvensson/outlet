@@ -36,7 +36,9 @@ BRIDGE = Bridge(s.url(), config_file_path=BRIDGE_PATH)
 # === LOGGING SETUP ===
 
 # Directory where log files will be stored
-LOG_DIR = "logs"
+# LOG_DIR = "logs"
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
 # Create logs/ directory if missing
 os.makedirs(LOG_DIR, exist_ok=True)
