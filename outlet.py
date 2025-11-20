@@ -275,7 +275,6 @@ def get_remote_data() -> dict:
         d['sunrise'] = datetime.combine(datetime.today(), (datetime.min + sr).time())
         d['sunset'] = datetime.combine(datetime.today(), (datetime.min + ss).time())
 
-        print("!!!!! VALS ts, sr, ss", d['timestamp'], d['sunrise'], d['sunset'])
         save_cache(d['timestamp'], d['sunrise'], d['sunset'])
 
     return d
@@ -297,7 +296,6 @@ def init_cache():
 
     conn.commit()
     conn.close()
-    print("!!!! Initiate OK")
 
 
 def save_cache(timestamp: datetime, sunrise: datetime, sunset: datetime):
@@ -305,8 +303,6 @@ def save_cache(timestamp: datetime, sunrise: datetime, sunset: datetime):
     cur = conn.cursor()
 
     today = date.today().isoformat()
-    print("!!!!! TODAY", today)
-    print("!!!!! SQL insert vals:", timestamp.isoformat(), sunrise.isoformat(), sunset.isoformat())
 
     cur.execute("""
         INSERT OR REPLACE INTO daily_cache (cache_date, timestamp, sunrise, sunset)
@@ -330,8 +326,6 @@ def load_cache():
     cur.execute("SELECT timestamp, sunrise, sunset FROM daily_cache WHERE cache_date = ?", (today,))
     row = cur.fetchone()
     conn.close()
-
-    print("ROWS?????", row)
 
     if not row:
         logging.warning("No cached values found")
