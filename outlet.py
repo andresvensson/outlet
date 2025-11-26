@@ -118,6 +118,7 @@ def main():
         except Exception as e:
             logging.error(f"could not get status: {e}")
 
+        logging.info(f"sleep for {sleep / 60} minutes, to {ts_now.replace(microsecond=0) + timedelta(seconds=sleep)}")
         if developing:
             if sleep > 600:
                 msg = f"{round((sleep / 60) / 60)} hours"
