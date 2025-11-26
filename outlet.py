@@ -38,12 +38,11 @@ BRIDGE = Bridge(s.url(), config_file_path=BRIDGE_PATH)
 # Directory where log files will be stored
 # LOG_DIR = "logs"
 LOG_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
 
 # Create logs/ directory if missing
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Create timestamped log filename (Option C)
+# Create timestamped log filename
 _log_ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
 LOG_FILE = os.path.join(LOG_DIR, f"log_{_log_ts}.log")
 
@@ -51,8 +50,8 @@ if developing:
     # overwrite log.log file in script directory
     logging.basicConfig(level=logging.DEBUG, filename=LOG_PATH, filemode="w",
                         format="%(asctime)s | %(levelname)s | %(message)s")
-else:
-    logging.basicConfig(level=logging.WARNING, filename=LOG_FILE, filemode="w",
+else: # TODO DEBUG -> WARNING
+    logging.basicConfig(level=logging.DEBUG, filename=LOG_FILE, filemode="w",
                         format="%(asctime)s | %(levelname)s | %(message)s")
 
 
@@ -103,6 +102,7 @@ def main():
                 logging.warning(
                     f"DEV MODE, skipping sleep for {round((sleep / 60 / 60))} hours (to {interrupt_data['hueDB_break_time']})")
             else:
+                logging.info(f"sleep for {round((sleep / 60 / 60))} hours (to {interrupt_data['hueDB_break_time']})")
                 time.sleep(sleep)
             now = datetime.now()
             logging.info(f"Woke up at {now} after interruption delay")
@@ -113,6 +113,7 @@ def main():
                 "No information from HUE database or Lamp has not been toggled for the set delay time. Proceed to check daylight")
 
         try:
+            logging.info("check status (day/night and lamp)")
             check_status()
         except Exception as e:
             logging.error(f"could not get status: {e}")
@@ -383,5 +384,5 @@ def turn_off():
 
 
 if __name__ == "__main__":
-    logging.info("lamp.py stared")
+    logging.info("outlet.py stared")
     main()
