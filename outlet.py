@@ -113,11 +113,13 @@ def main():
             logging.info(
                 "No information from HUE database or Lamp has not been toggled for the set delay time. Proceed to check daylight")
 
-        try:
-            logging.info("check status (day/night and lamp)")
-            sleep = check_status()
-        except Exception as e:
-            logging.error(f"could not get status: {e}")
+        # try:
+        #     logging.info("check status (day/night and lamp)")
+        #     sleep = check_status()
+        # except Exception as e:
+        #     logging.error(f"could not get status: {e}")
+
+        sleep = check_status()
 
         logging.info(f"sleep for {round(sleep / 60)} minutes, to {ts_now.replace(microsecond=0) + timedelta(seconds=sleep)}")
         if developing:
@@ -210,12 +212,15 @@ def check_status() -> float:
 
     dt_now = datetime.now()
     one_hour = dt_now + timedelta(hours=1)
+    # Convert time → datetime
+    t_to_dt = datetime.combine(dt_now.date(), t_to)
 
     if d['ban_time']:
         # check for how long. If shorter than 1 hour -> set sleep value
         # if ban time left is less than one hour, set another sleep
-        if t_to > one_hour:
-            sleep = (one_hour - t_to).total_seconds()
+        # TODO could not get status: '>' not supported between instances of 'datetime.time' and 'datetime.datetime'????
+        if t_to_dt > one_hour:
+            sleep = (one_hour - t_to_dt).total_seconds()
             logging.info(f"ban time active but less than 1 hour. Ban time left is {round(sleep / 60)} minutes")
 
     if developing:
