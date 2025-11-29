@@ -1,5 +1,6 @@
 import datetime
 import time
+from inspect import trace
 
 import pymysql
 import sqlite3
@@ -82,7 +83,7 @@ delete_old_logs()
 
 def main():
     while True:
-        logging.info("in main loop")
+        logging.info("in start of main loop")
         ts_now = datetime.now()
 
         # default sleep time 1 hour
@@ -114,11 +115,11 @@ def main():
 
         try:
             logging.info("check status (day/night and lamp)")
-            check_status()
+            sleep = check_status()
         except Exception as e:
             logging.error(f"could not get status: {e}")
 
-        logging.info(f"sleep for {sleep / 60} minutes, to {ts_now.replace(microsecond=0) + timedelta(seconds=sleep)}")
+        logging.info(f"sleep for {round(sleep / 60)} minutes, to {ts_now.replace(microsecond=0) + timedelta(seconds=sleep)}")
         if developing:
             if sleep > 600:
                 msg = f"{round((sleep / 60) / 60)} hours"
@@ -177,8 +178,9 @@ def check_interrupts() -> dict:
     return d
 
 
-def check_status():
+def check_status() -> float:
     d = get_daylight()
+    sleep = 3600
 
     ts_now = datetime.now()
     if d['sunrise'] < ts_now < d['sunset']:
@@ -206,6 +208,15 @@ def check_status():
 
     d['ban_time'] = sleeping
 
+    dt_now = datetime.now()
+    one_hour = dt_now + timedelta(hours=1)
+
+    if d['ban_time']:
+        # check for how long. If shorter than 1 hour -> set sleep value
+        # if ban time left is less than one hour, set another sleep
+        if t_to > one_hour:
+            sleep = (one_hour - t_to).total_seconds()
+            logging.info(f"ban time active but less than 1 hour. Ban time left is {round(sleep / 60)} minutes")
 
     if developing:
         print("...............DATA...............")
@@ -215,6 +226,15 @@ def check_status():
 
     set_state(d)
 
+    # sunrise/sunset within 1 hour, set shorter sleep
+    if dt_now < d['sunrise'] < one_hour:
+        sleep = (one_hour - d['sunrise']).total_seconds()
+    elif dt_now < d['sunset'] < one_hour:
+        sleep = (one_hour - d['sunset']).total_seconds()
+    else:
+        pass
+
+    return sleep
 
 def get_daylight() -> dict:
     logging.info("Get sunrise and sunset times")
@@ -257,7 +277,6 @@ def get_remote_data() -> dict:
     sql = None
 
     try:
-        # TODO
         db = pymysql.connect(host=h, user=u, passwd=p, db=d)
         c = db.cursor()
         c.execute("SELECT value_id, time_stamp, sunrise, sunset "
