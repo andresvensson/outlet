@@ -133,6 +133,10 @@ def main():
             logging.warning(f"DEV STOP - would sleep {msg}")
             break
 
+        # avoid negative values for sleep
+        if sleep < 0:
+            sleep = 1
+
         time.sleep(sleep)
 
 
