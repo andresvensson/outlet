@@ -153,7 +153,7 @@ def check_interrupts() -> dict:
         c.close()
 
     except pymysql.Error as e:
-        msg = f"Error reading DB\n{e}"
+        msg = f"Error reading DB | {e}"
         print(msg)
         logging.warning(msg)
 
@@ -267,8 +267,8 @@ def get_daylight() -> dict:
 
     except Exception as e:
         traceback.format_exc()
-        print(f"Error get remote data\n{e}")
-        logging.exception(f"Error get remote data\n{e}")
+        print(f"Error get remote data | {e}")
+        logging.exception(f"Error get remote data | {e}")
         if d:
             logging.warning("⚠ Using old cached values due to remote error")
             return d
@@ -294,7 +294,7 @@ def get_remote_data() -> dict:
         c.close()
 
     except pymysql.Error as e:
-        logging.warning(f"Error reading DB: {e}\nFallback to default schema")
+        logging.warning(f"Error reading DB | {e} | Fallback to default schema")
 
     d = {}
     if sql:
