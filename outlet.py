@@ -51,8 +51,9 @@ if developing:
     # overwrite log.log file in script directory
     logging.basicConfig(level=logging.DEBUG, filename=LOG_PATH, filemode="w",
                         format="%(asctime)s | %(levelname)s | %(message)s")
+# TODO DEBUG -> WARNING
 else:
-    logging.basicConfig(level=logging.WARNING, filename=LOG_FILE, filemode="w",
+    logging.basicConfig(level=logging.DEBUG, filename=LOG_FILE, filemode="w",
                         format="%(asctime)s | %(levelname)s | %(message)s")
 
 
