@@ -187,7 +187,8 @@ def check_interrupts() -> dict:
 
 def check_status() -> float:
     d = get_daylight()
-    sleep = 3600
+    # default sleep 59 min (+1 min later)
+    sleep = 3540
 
     ts_now = datetime.now()
     if d['sunrise'] < ts_now < d['sunset']:
@@ -244,6 +245,7 @@ def check_status() -> float:
     else:
         pass
 
+    sleep = sleep + 60
     return sleep
 
 def get_daylight() -> dict:
