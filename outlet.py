@@ -187,8 +187,8 @@ def check_interrupts() -> dict:
 
 def check_status() -> float:
     d = get_daylight()
-    # default sleep 59 min (+1 min later)
-    sleep = 3540
+    # default sleep 60 min - 5 sec (+5 sec min later)
+    sleep = 3595
 
     ts_now = datetime.now()
     if d['sunrise'] < ts_now < d['sunset']:
@@ -238,14 +238,21 @@ def check_status() -> float:
     set_state(d)
 
     # sunrise/sunset within 1 hour, set shorter sleep
+    # TODO adjust this. Had an instance where sleep was set couple of seconds short
+    # TODO and next run defaulted to an hour (=lamp turn on an hour late)
     if dt_now < d['sunrise'] < one_hour:
-        sleep = (one_hour - d['sunrise']).total_seconds()
+        #sleep = (one_hour - d['sunrise']).total_seconds()
+        sleep = (d['sunrise'] - dt_now).total_seconds()
     elif dt_now < d['sunset'] < one_hour:
-        sleep = (one_hour - d['sunset']).total_seconds()
+        #sleep = (one_hour - d['sunset']).total_seconds()
+        sleep = (d['sunset'] - dt_now).total_seconds()
     else:
         pass
 
-    sleep = sleep + 60
+    sleep = sleep + 5
+    if sleep < 0:
+        sleep = 1
+
     return sleep
 
 def get_daylight() -> dict:

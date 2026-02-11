@@ -8,6 +8,7 @@ outlet.py
 old_lamp.py
 local_cache.sqlite
 phue.conf
+test_time.py
 
 .idea/
 
