@@ -53,7 +53,7 @@ if developing:
                         format="%(asctime)s | %(levelname)s | %(message)s")
 # TODO DEBUG -> WARNING
 else:
-    logging.basicConfig(level=logging.DEBUG, filename=LOG_FILE, filemode="w",
+    logging.basicConfig(level=logging.WARNING, filename=LOG_FILE, filemode="w",
                         format="%(asctime)s | %(levelname)s | %(message)s")
 
 
@@ -238,13 +238,9 @@ def check_status() -> float:
     set_state(d)
 
     # sunrise/sunset within 1 hour, set shorter sleep
-    # TODO adjust this. Had an instance where sleep was set couple of seconds short
-    # TODO and next run defaulted to an hour (=lamp turn on an hour late)
     if dt_now < d['sunrise'] < one_hour:
-        #sleep = (one_hour - d['sunrise']).total_seconds()
         sleep = (d['sunrise'] - dt_now).total_seconds()
     elif dt_now < d['sunset'] < one_hour:
-        #sleep = (one_hour - d['sunset']).total_seconds()
         sleep = (d['sunset'] - dt_now).total_seconds()
     else:
         pass
