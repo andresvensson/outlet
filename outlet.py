@@ -256,10 +256,12 @@ def get_daylight() -> dict:
     init_cache()
     # check sqlite if data old, get daylight from db, store it in sql
     d = load_cache()
+    cached = None
 
     ts_now = datetime.now()
     if d:
         logging.info("Got cached values")
+        cached = d
         if d['timestamp'] > ts_now + timedelta(days=-1):
             logging.info("Using cached values")
             return d
@@ -267,17 +269,22 @@ def get_daylight() -> dict:
             logging.warning("Cached data is old")
     else:
         logging.info("Connect to remote database instead")
+        cached = None
+
     try:
         d = get_remote_data()
-        return d
-
     except Exception as e:
         traceback.format_exc()
         print(f"Error get remote data | {e}")
         logging.exception(f"Error get remote data | {e}")
-        if d:
-            logging.warning("⚠ Using old cached values due to remote error")
-            return d
+        pass
+
+    if d:
+        return d
+
+    if cached:
+        logging.warning("⚠ Using old cached values due to remote error")
+        return cached
 
     logging.exception("⚠ Using hard coded values due to remote error and no cached data")
     d['sunrise'] = ts_now.replace(hour=7, minute=30, second=0)
